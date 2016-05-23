@@ -561,6 +561,35 @@ var _ = Describe("Proxy", func() {
 		conn.ReadResponse()
 	})
 
+	It("doesn't overwrite header set by backend", func() {
+		done := make(chan map[string][]string)
+
+		ln := registerHandler(r, "app", func(conn *test_util.HttpConn) {
+			_, err := http.ReadRequest(conn.Reader)
+			Expect(err).NotTo(HaveOccurred())
+			resp := test_util.NewResponse(http.StatusOK)
+			resp.Header.Set("TestCase", "TestValue")
+			conn.WriteResponse(resp)
+			conn.Close()
+
+			done <- resp.Header
+		})
+		defer ln.Close()
+
+		conn := dialProxy(proxyServer)
+
+		req := test_util.NewRequest("GET", "app", "/", nil)
+		conn.WriteRequest(req)
+
+		var answer map[string][]string
+		Eventually(done).Should(Receive(&answer))
+		val, ok := answer["TestCase"]
+		Expect(ok).To(BeTrue())
+		Expect(val).To(Equal("TestValue"))
+
+		conn.ReadResponse()
+	})
+
 	It("doesn't overwrite X-Forwarded-Proto if present", func() {
 		done := make(chan string)
 
