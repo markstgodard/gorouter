@@ -14,6 +14,11 @@ import (
 	"github.com/pivotal-golang/localip"
 )
 
+const LOAD_BALANCE_RR string = "round-robin"
+const LOAD_BALANCE_LC string = "least-connection"
+
+var LoadBalancingStrategies = []string{LOAD_BALANCE_RR, LOAD_BALANCE_LC}
+
 type StatusConfig struct {
 	Port uint16 `yaml:"port"`
 	User string `yaml:"user"`
@@ -136,7 +141,8 @@ type Config struct {
 	TokenFetcherRetryIntervalInSeconds        int    `yaml:"token_fetcher_retry_interval"`
 	TokenFetcherExpirationBufferTimeInSeconds int64  `yaml:"token_fetcher_expiration_buffer_time"`
 
-	PidFile string `yaml:"pid_file"`
+	PidFile     string `yaml:"pid_file"`
+	LoadBalance string `yaml:"load_balance"`
 }
 
 var defaultConfig = Config{
@@ -162,6 +168,8 @@ var defaultConfig = Config{
 	TokenFetcherMaxRetries:                    3,
 	TokenFetcherRetryIntervalInSeconds:        5,
 	TokenFetcherExpirationBufferTimeInSeconds: 30,
+
+	LoadBalance: LOAD_BALANCE_RR,
 }
 
 func DefaultConfig() *Config {
@@ -230,6 +238,18 @@ func (c *Config) Process() {
 
 	if c.RouteServiceSecret != "" {
 		c.RouteServiceEnabled = true
+	}
+
+	// check if valid load balancing strategy
+	validLb := false
+	for _, lb := range LoadBalancingStrategies {
+		if c.LoadBalance == lb {
+			validLb = true
+			break
+		}
+	}
+	if !validLb {
+		panic("Invalid load balancing strategy")
 	}
 }
 
