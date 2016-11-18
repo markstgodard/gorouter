@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"io/ioutil"
 	"net"
 	"net/http"
 
@@ -36,6 +37,14 @@ func (rt *BackendRoundTripper) RoundTrip(request *http.Request) (*http.Response,
 	var err error
 	var res *http.Response
 	var endpoint *route.Endpoint
+
+	if request.Body != nil {
+		closer := request.Body
+		request.Body = ioutil.NopCloser(request.Body)
+		defer func() {
+			closer.Close()
+		}()
+	}
 
 	for retry := 0; retry < maxRetries; retry++ {
 		endpoint, err = rt.selectEndpoint(request)
